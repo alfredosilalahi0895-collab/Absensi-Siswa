@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Sistem Absensi Siswa XI RPL — aplikasi HTML, CSS, dan JavaScript dengan Firebase Authentication dan Realtime Database." />
+  <title>Sistem Absensi Siswa</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js",
+        "firebase/database": "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js"
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="style.css?v=8" />
+</head>
+<body>
+  <header class="navbar">
+    <nav class="nav-inner" aria-label="Navigasi utama">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">✓</div>
+        <div>
+          <h1>Absensi Siswa</h1>
+        </div>
+      </div>
+      <div class="nav-user hidden" id="navUser">
+        <span class="user-pill" id="userEmailDisplay" title="Email pengguna">-</span>
+        <button class="btn btn-outline btn-sm" id="btnLogout" type="button">Logout</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section id="loginSection" class="card login-card" aria-labelledby="loginTitle">
+      <h2 id="loginTitle">Masuk Aplikasi</h2>
+      <p class="muted">Login menggunakan akun Firebase (email &amp; password).</p>
+
+      <form id="loginForm" autocomplete="on">
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="nama@email.com"
+                 autocomplete="username" required />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="••••••••"
+                 autocomplete="current-password" minlength="6" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Login</button>
+        <button type="button" class="link-btn" id="btnRegister">Belum punya akun? Daftar</button>
+      </form>
+
+      <div id="loginMsg" class="msg hidden" role="alert" aria-live="polite"></div>
+    </section>
+
+    <div id="appSection" class="hidden">
+      <section class="grid stats" aria-label="Ringkasan absensi">
+        <div class="card stat">
+          <span class="stat-label">Pengguna login</span>
+          <strong id="statUser" class="stat-value small">-</strong>
+          <span class="stat-sub" id="statUid">-</span>
+        </div>
+        <div class="card stat">
+          <span class="stat-label">Akun terdaftar</span>
+          <strong id="statUsers" class="stat-value">0</strong>
+          <span class="stat-sub">tersimpan di database</span>
+        </div>
+        <div class="card stat">
+          <span class="stat-label">Total absensi tercatat</span>
+          <strong id="statTotal" class="stat-value">0</strong>
+          <span class="stat-sub">tersimpan otomatis di Firebase</span>
+        </div>
+        <div class="card stat">
+          <span class="stat-label">Hadir &bull; Izin &bull; Sakit</span>
+          <strong class="stat-value">
+            <span class="badge hadir" id="statHadir">0</span>
+            <span class="badge izin" id="statIzin">0</span>
+            <span class="badge sakit" id="statSakit">0</span>
+          </strong>
+          <span class="stat-sub">ringkasan status</span>
+        </div>
+      </section>
+
+      <div class="grid two">
+        <section class="card" aria-labelledby="formTitle">
+          <h2 id="formTitle">Form Absensi</h2>
+          <form id="absensiForm" novalidate>
+            <div class="field">
+              <label for="nama">Nama Siswa</label>
+              <input type="text" id="nama" name="nama" placeholder="cth: Ardi"
+                     maxlength="60" autocomplete="off" required />
+            </div>
+
+            <div class="field">
+              <label for="kelas">Kelas</label>
+              <input type="text" id="kelas" name="kelas"
+                     placeholder="Ketik kelas (cth: XI RPL)" maxlength="30" autocomplete="off" required />
+            </div>
+
+            <div class="row">
+              <div class="col field">
+                <label for="tanggal">Tanggal</label>
+                <input type="date" id="tanggal" name="tanggal" required />
+              </div>
+              <div class="col field">
+                <label for="status">Status</label>
+                <select id="status" name="status" required>
+                  <option value="">-- Pilih --</option>
+                  <option value="Hadir">Hadir</option>
+                  <option value="Izin">Izin</option>
+                  <option value="Sakit">Sakit</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" id="btnSimpan">Simpan Absensi</button>
+          </form>
+          <div id="formMsg" class="msg hidden" role="alert" aria-live="polite"></div>
+        </section>
+
+        <section class="card" aria-labelledby="dataTitle">
+          <div class="table-head">
+            <h2 id="dataTitle">Data Absensi</h2>
+            <div class="search-box">
+              <label for="search" class="sr-only">Cari nama atau kelas</label>
+              <input type="search" id="search" placeholder="Cari nama / kelas..." autocomplete="off" />
+            </div>
+          </div>
+          <p class="muted small" id="dataInfo" aria-live="polite">Menunggu data...</p>
+          <div class="table-wrap">
+            <table aria-describedby="dataInfo">
+              <thead>
+                <tr>
+                  <th scope="col">Nama</th>
+                  <th scope="col">Kelas</th>
+                  <th scope="col">Tanggal</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tbody">
+                <tr><td colspan="5" class="center muted">Belum ada data</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="editModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <div class="modal-card">
+      <h3 id="editTitle">Edit Absensi</h3>
+      <form id="editForm" novalidate>
+        <input type="hidden" id="editId" />
+        <div class="field">
+          <label for="editNama">Nama</label>
+          <input type="text" id="editNama" maxlength="60" required />
+        </div>
+        <div class="field">
+          <label for="editKelas">Kelas</label>
+          <input type="text" id="editKelas" placeholder="Ketik kelas (cth: XI RPL)" maxlength="30" required />
+        </div>
+        <div class="field">
+          <label for="editTanggal">Tanggal</label>
+          <input type="date" id="editTanggal" required />
+        </div>
+        <div class="field">
+          <label for="editStatus">Status</label>
+          <select id="editStatus" required>
+            <option value="Hadir">Hadir</option>
+            <option value="Izin">Izin</option>
+            <option value="Sakit">Sakit</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="btnBatal" type="button">Batal</button>
+          <button class="btn btn-primary" id="btnUpdate" type="submit">Simpan Perubahan</button>
+        </div>
+      </form>
+      <div id="editMsg" class="msg hidden" role="alert" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <script src="app.js?v=8" type="module"></script>
+</body>
+</html>
