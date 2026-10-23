@@ -15,7 +15,7 @@
       }
     }
   </script>
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css?v=11" />
 </head>
 <body>
   <header class="navbar">
@@ -27,6 +27,7 @@
         </div>
       </div>
       <div class="nav-user hidden" id="navUser">
+        <span class="role-badge" id="roleBadge">Siswa</span>
         <span class="user-pill" id="userEmailDisplay" title="Email pengguna">-</span>
         <button class="btn btn-outline btn-sm" id="btnLogout" type="button">Logout</button>
       </div>
@@ -36,7 +37,6 @@
   <main class="container">
     <section id="loginSection" class="card login-card" aria-labelledby="loginTitle">
       <h2 id="loginTitle">Masuk Aplikasi</h2>
-      <p class="muted">Login menggunakan akun Firebase (email &amp; password).</p>
 
       <form id="loginForm" autocomplete="on">
         <div class="field">
@@ -52,7 +52,40 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Login</button>
-        <button type="button" class="link-btn" id="btnRegister">Belum punya akun? Daftar</button>
+        <div class="link-row">
+          <button type="button" class="link-btn" id="btnShowRegister">Belum punya akun? Daftar</button>
+          <button type="button" class="link-btn" id="btnForgotPassword">Lupa password?</button>
+        </div>
+      </form>
+
+      <form id="registerForm" class="hidden" autocomplete="on">
+        <p class="muted small">Akun baru otomatis terdaftar sebagai <strong>Siswa</strong>.</p>
+
+        <div class="field">
+          <label for="regNama">Nama Lengkap</label>
+          <input type="text" id="regNama" maxlength="60" placeholder="cth: Ardi Pratama"
+                 autocomplete="name" required />
+        </div>
+
+        <div class="field">
+          <label for="regKelas">Kelas</label>
+          <input type="text" id="regKelas" maxlength="30" placeholder="cth: XI RPL"
+                 autocomplete="off" required />
+        </div>
+
+        <div class="field">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" placeholder="nama@email.com" autocomplete="username" required />
+        </div>
+
+        <div class="field">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="Minimal 6 karakter"
+                 autocomplete="new-password" minlength="6" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btnRegisterSubmit">Daftar</button>
+        <button type="button" class="link-btn" id="btnBackToLogin">Sudah punya akun? Kembali ke login</button>
       </form>
 
       <div id="loginMsg" class="msg hidden" role="alert" aria-live="polite"></div>
@@ -65,15 +98,15 @@
           <strong id="statUser" class="stat-value small">-</strong>
           <span class="stat-sub" id="statUid">-</span>
         </div>
-        <div class="card stat">
+        <div class="card stat data-admin-only">
           <span class="stat-label">Akun terdaftar</span>
           <strong id="statUsers" class="stat-value">0</strong>
-          <span class="stat-sub">tersimpan di database</span>
+          <span class="stat-sub" id="statUsersSub">tersimpan di database</span>
         </div>
         <div class="card stat">
-          <span class="stat-label">Total absensi tercatat</span>
+          <span class="stat-label" id="statTotalLabel">Total absensi tercatat</span>
           <strong id="statTotal" class="stat-value">0</strong>
-          <span class="stat-sub">tersimpan otomatis di Firebase</span>
+          <span class="stat-sub" id="statSub">tersimpan otomatis di Firebase</span>
         </div>
         <div class="card stat">
           <span class="stat-label">Hadir &bull; Izin &bull; Sakit</span>
@@ -89,7 +122,15 @@
       <div class="grid two">
         <section class="card" aria-labelledby="formTitle">
           <h2 id="formTitle">Form Absensi</h2>
+          <p class="muted small" id="formHint">Isi data kehadiran di bawah ini.</p>
           <form id="absensiForm" novalidate>
+            <div class="field data-admin-only" id="siswaPickerField">
+              <label for="siswaPicker">Pilih Siswa Terdaftar (opsional)</label>
+              <select id="siswaPicker">
+                <option value="">-- Input manual --</option>
+              </select>
+            </div>
+
             <div class="field">
               <label for="nama">Nama Siswa</label>
               <input type="text" id="nama" name="nama" placeholder="cth: Ardi"
@@ -131,6 +172,18 @@
               <input type="search" id="search" placeholder="Cari nama / kelas..." autocomplete="off" />
             </div>
           </div>
+
+          <div class="filters data-admin-only" aria-label="Filter data absensi">
+            <select id="filterStatus" aria-label="Filter status">
+              <option value="">Semua status</option>
+              <option value="Hadir">Hadir</option>
+              <option value="Izin">Izin</option>
+              <option value="Sakit">Sakit</option>
+            </select>
+            <input type="date" id="filterTanggal" aria-label="Filter tanggal" />
+            <button type="button" class="btn btn-outline btn-sm" id="btnResetFilter">Reset</button>
+          </div>
+
           <p class="muted small" id="dataInfo" aria-live="polite">Menunggu data...</p>
           <div class="table-wrap">
             <table aria-describedby="dataInfo">
@@ -140,7 +193,7 @@
                   <th scope="col">Kelas</th>
                   <th scope="col">Tanggal</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Aksi</th>
+                  <th scope="col" class="data-admin-only" id="thAksi">Aksi</th>
                 </tr>
               </thead>
               <tbody id="tbody">
@@ -150,6 +203,29 @@
           </div>
         </section>
       </div>
+
+      <section class="card accounts-card data-admin-only" id="accountsCard" aria-labelledby="accountsTitle">
+        <div class="table-head">
+          <h2 id="accountsTitle">Akun Pengguna</h2>
+          <p class="muted small" id="accountsInfo" aria-live="polite">Memuat akun...</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Email</th>
+                <th scope="col">Nama</th>
+                <th scope="col">Kelas</th>
+                <th scope="col">Peran</th>
+                <th scope="col">Login Terakhir</th>
+              </tr>
+            </thead>
+            <tbody id="accountsBody">
+              <tr><td colspan="5" class="center muted">Belum ada akun</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -187,6 +263,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=8" type="module"></script>
+  <script src="app.js?v=11" type="module"></script>
 </body>
 </html>
